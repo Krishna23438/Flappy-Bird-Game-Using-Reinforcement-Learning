@@ -2,6 +2,7 @@ import flappy_bird_gymnasium
 import gymnasium as gym
 import torch
 from dqn import DQN
+from experience_replay import ReplayMemory
 
 if torch.backends.mps.is_available():
     device = "mps"
@@ -19,6 +20,9 @@ def run(self, is_training=True, render = False):
     policy_dqn = DQN(num_states, num_actions).to(device)
 
     state, _ = env.reset()
+
+    if is_training:
+        memory = ReplayMemory(10000)
 
     while True:
       # Next action:
