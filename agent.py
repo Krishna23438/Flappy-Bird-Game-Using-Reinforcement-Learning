@@ -31,6 +31,9 @@ def run(self, is_training=True, render = False):
 
       # Processing: terminated => done
       next_state, reward, terminated, _, _ = env.step(action)
+
+      if is_training:
+          memory.append((state, action,next_state, reward,terminated))
     
       # Checking if the player is still alive
       if terminated:
