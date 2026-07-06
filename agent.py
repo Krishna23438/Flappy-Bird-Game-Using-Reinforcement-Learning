@@ -76,7 +76,7 @@ class Agent:
             state, _ = env.reset()
             state = torch.tensor(state, dtype=torch.float, device=device)
             terminated = False
-            episode_rewards = 0
+            episode_reward = 0
 
             while not terminated:
                 if is_training and random.random()<epsilon:
@@ -100,13 +100,24 @@ class Agent:
                     steps += 1
 
                 state = new_state
-                episode_rewards += reward.item()
+                episode_reward += reward.item()
 
-            print(f"for episode={episode+1}with total reward={episode_rewards} & epsilon={epsilon}")
+            print(f"for episode={episode+1}with total reward={episode_reward} & epsilon={epsilon}")
 
-            # epsilon decay - only for training
+            
             if is_training:
+                # epsilon decay - only for training
                 epsilon = max(epsilon*self.epsilon_decay, self.epsilon_min)
+
+                if episode_reward > best_reward:
+                    log_msg = f"best reward = {episode_reward} for episode={episode+1}"
+
+                    
+                    with open(self.LOG_FILE,"a") as f:
+                        f.write(log_msg + "\n")
+
+                    torch.save(policy_dqn.state_dict(), self.MODEL_FILE)
+                    best_reward = episode_reward
 
             if is_training and len(memory) > self.mini_batch_size:
                 #get sample
