@@ -4,6 +4,8 @@ import torch
 from dqn import DQN
 from experience_replay import ReplayMemory
 import itertools # for indefinite propagation
+import yaml
+
 
 if torch.backends.mps.is_available():
     device = "mps"
