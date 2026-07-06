@@ -93,18 +93,18 @@ class Agent:
                         action = policy_dqn(state.unsqueeze(dim=0)).squeeze().argmax() #exploit
 
                 # Processing: terminated => done
-                new_state, reward, terminated, _, _ = env.step(action.item())
+                next_state, reward, terminated, _, _ = env.step(action.item())
 
                 # creation of tensor 
-                new_state = torch.tensor(new_state, dtype=torch.float, device=device)
+                next_state = torch.tensor(next_state, dtype=torch.float, device=device)
                 reward = torch.tensor(reward, dtype=torch.float, device=device)
 
 
                 if is_training:
-                    memory.append((state, action,new_state, reward,terminated))
+                    memory.append((state, action,next_state, reward,terminated))
                     steps += 1
 
-                state = new_state
+                state = next_state
                 episode_reward += reward.item()
 
             print(f"for episode={episode+1}with total reward={episode_reward} & epsilon={epsilon}")
