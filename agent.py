@@ -25,7 +25,7 @@ os.makedirs(RUNS_DIR, exist_ok=True)
  
 class Agent:
     def __init__(self,param_set):
-        with open("parameters.yaml","r") as f:
+        with open("parameter.yaml","r") as f:
             all_param_set = yaml.safe_load(f)
             params = all_param_set[param_set]
 
