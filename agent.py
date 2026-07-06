@@ -72,13 +72,18 @@ class Agent:
 
             best_reward = float("-inf")
 
+        else:
+            # best policy load 
+            policy_dqn.load_state_dict(torch.load(self.MODEL_FILE))
+            policy_dqn.eval()
+
         for episode in itertools.count():
             state, _ = env.reset()
             state = torch.tensor(state, dtype=torch.float, device=device)
             terminated = False
             episode_reward = 0
 
-            while not terminated:
+            while (not terminated and episode_reward <self.reward_threshold):
                 if is_training and random.random()<epsilon:
                     action = env.action_space.sample() #explore
                     action = torch.tensor(action, dtype=torch.long, device=device)
