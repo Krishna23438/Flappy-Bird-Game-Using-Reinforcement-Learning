@@ -7,6 +7,7 @@ import itertools # for indefinite propagation
 import yaml
 import torch.nn  as nn
 import random
+import torch.optim as optim
 
 
 
@@ -53,6 +54,13 @@ class Agent:
             memory = ReplayMemory(self.replay_memory_size)
             epsilon = self.epsilon_init
 
+            # Target network
+            target_dqn = DQN(num_states, num_actions).to(device)
+            #copy the wt & bias vals from policy => target
+            target_dqn.load_state_dict(policy_dqn.state_dict())
+            steps = 0
+            self.optimizer = optim.Adam(policy_dqn.parameters(), lr=self.alpha)
+
         for episode in itertools.count():
             state, _ = env.reset()
             state = torch.tensor(state, dtype=torch.float, device=device)
@@ -65,7 +73,7 @@ class Agent:
                     action = torch.tensor(action, dtype=torch.long, device=device)
 
                 else:
-                    with torch.no_grad:
+                    with torch.no_grad():
                         action = policy_dqn(state.unsqueeze(dim=0)).squeeze().argmax() #exploit
 
                 # Processing: terminated => done
@@ -78,14 +86,27 @@ class Agent:
 
                 if is_training:
                     memory.append((state, action,new_state, reward,terminated))
+                    steps += 1
 
                 state = new_state
                 episode_rewards += reward
 
             print(f"for episode={episode+1}with total reward={episode_rewards} & epsilon={epsilon}")
 
-            # epsilon decay
-            epsilon = max(epsilon*self.epsilon_decay, self.epsilon_min)
+            # epsilon decay - only for training
+            if is_training:
+                epsilon = max(epsilon*self.epsilon_decay, self.epsilon_min)
+
+            if is_training and len(memory) > self.mini_batch_size:
+                #get sample
+                mini_batch = memory.sample(self.mini_batch_size)
+
+                optimize(mini_batch, policy_dqn, target_dqn)
+
+                # sync the network
+                if steps > self.network_sync_rate:
+                    target_dqn.load_state_dict(policy_dqn.state_dict())
+                    steps = 0
 
 
             #env.close() -- for manually close
