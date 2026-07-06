@@ -8,6 +8,8 @@ import yaml
 import torch.nn  as nn
 import random
 import torch.optim as optim
+import argparse
+import os
 
 
 
@@ -18,6 +20,9 @@ elif torch.cuda.is_available():
 else:
     device = "cpu"
 
+RUNS_DIR = "runs"
+os.makedirs(RUNS_DIR, exist_ok=True)
+ 
 class Agent:
     def __init__(self,param_set):
         with open("parameters.yaml","r") as f:
@@ -38,6 +43,8 @@ class Agent:
         self.loss_fn = nn.MSELoss()
         self.optimizer = None
         
+        self.LOG_FILE = os.path.join(RUNS_DIR, f"{self.param_set}.log")
+        self.MODEL_FILE = os.path.join(RUNS_DIR, f"{self.param_set}.pt")
 
     def run(self, is_training=True, render = False):
   
@@ -50,6 +57,8 @@ class Agent:
 
         state, _ = env.reset()
 
+
+
         if is_training:
             memory = ReplayMemory(self.replay_memory_size)
             epsilon = self.epsilon_init
@@ -60,6 +69,8 @@ class Agent:
             target_dqn.load_state_dict(policy_dqn.state_dict())
             steps = 0
             self.optimizer = optim.Adam(policy_dqn.parameters(), lr=self.alpha)
+
+            best_reward = float("-inf")
 
         for episode in itertools.count():
             state, _ = env.reset()
@@ -77,7 +88,7 @@ class Agent:
                         action = policy_dqn(state.unsqueeze(dim=0)).squeeze().argmax() #exploit
 
                 # Processing: terminated => done
-                new_state, reward, terminated, _, _ = env.step(action)
+                new_state, reward, terminated, _, _ = env.step(action.item())
 
                 # creation of tensor 
                 new_state = torch.tensor(new_state, dtype=torch.float, device=device)
@@ -89,7 +100,7 @@ class Agent:
                     steps += 1
 
                 state = new_state
-                episode_rewards += reward
+                episode_rewards += reward.item()
 
             print(f"for episode={episode+1}with total reward={episode_rewards} & epsilon={epsilon}")
 
@@ -101,7 +112,7 @@ class Agent:
                 #get sample
                 mini_batch = memory.sample(self.mini_batch_size)
 
-                optimize(mini_batch, policy_dqn, target_dqn)
+                self.optimize(mini_batch, policy_dqn, target_dqn)
 
                 # sync the network
                 if steps > self.network_sync_rate:
@@ -110,3 +121,42 @@ class Agent:
 
 
             #env.close() -- for manually close
+
+    def optimize(self, mini_batch, policy_dqn, target_dqn):
+        # get batch of experience
+        states, actions, next_states, rewards , terminations = zip(*mini_batch)
+
+        states = torch.stack(states)
+        actions = torch.stack(actions)
+        next_states = torch.stack(next_states)
+        rewards = torch.stack(rewards)
+        terminations = torch.stack(terminations).float().to(device)
+
+        # calculate target Q-values - if terminations=true => zero
+        with torch.no_grad():
+            target_q = rewards + (1-terminations) * self.gamma*target_dqn(next_states).max(dim=1)[0]
+
+            #calculate y_pred i.e. Q-value from current policy
+            current_q = policy_dqn(states).gather(dim=1,index=actions.unsqueeze(dim=1)).squeeze()
+
+            #compute loss
+            loss = self.loss_fn(current_q,target_q)
+
+            #optimize_model
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+
+if __name__ == "__main__":
+    #Parse command line inputs
+    parser = argparse.ArgumentParser(description='Train or test model.')
+    parser.add_argument('hyperparameters',help='')
+    parser.add_argument('--train',help='Training mode', action='store_true')
+    args = parser.parse_args()
+
+    dql = Agent(param_set=args.hyperparameters)
+
+    if args.train:
+        dql.run(is_training=True)
+    else:
+        dql.run(is_training=False, render=True)
