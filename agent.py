@@ -14,40 +14,59 @@ elif torch.cuda.is_available():
 else:
     device = "cpu"
 
-def run(self, is_training=True, render = False):
-    env = gym.make("FlappyBird-v0", render_mode="human" if render else None)# this becomes true for testing and false for training
+class Agent:
+    def __init__(self,param_set):
+        with open("parameters.yaml","r") as f:
+            all_param_set = yaml.safe_load(f)
+            params = all_param_set[param_set]
 
-    num_states = env.observation_space.shape[0] #input dim
-    num_actions = env.action_space.n #output dimension (output_dim)
+        self.alpha = params["alpha"]
+        self.epsilon_init = params["epsilon_init"]
+        self.epsilon_min = params["epsilon_min"]
+        self.epsilon_decay = params["epsilon_decay"]
+        self.replay_memory_size = params["replay_memory_size"]
+        self.mini_batch_size = params["mini_batch_size"]
+        self.network_sync_rate = params["network_sync_rate"]
+        self.reward_threshold = params["reward_threshold"]
+        self.gamma = params["gamma"]
+        self.env_id = params["env_id"]
+        
 
-    policy_dqn = DQN(num_states, num_actions).to(device)
+    def run(self, is_training=True, render = False):
+  
+        env = gym.make("FlappyBird-v0", render_mode="human" if render else None)# this becomes true for testing and false for training
 
-    state, _ = env.reset()
+        num_states = env.observation_space.shape[0] #input dim
+        num_actions = env.action_space.n #output dimension (output_dim)
 
-    if is_training:
-        memory = ReplayMemory(10000)
+        policy_dqn = DQN(num_states, num_actions).to(device)
 
-    for episode in itertools.count():
-        while True:
-            state, _ = env.reset()
-            terminated = False
-            episode_rewards = 0
+        state, _ = env.reset()
 
-            # Next action:
-            # (feed the observation to your agent here)
-            action = env.action_space.sample()
+        if is_training:
+            memory = ReplayMemory(self.replay_memory_size)
 
-            # Processing: terminated => done
-            new_state, reward, terminated, _, _ = env.step(action)
+        for episode in itertools.count():
+            while True:
+                state, _ = env.reset()
+                terminated = False
+                episode_rewards = 0
 
-            if is_training:
-                memory.append((state, action,new_state, reward,terminated))
+                # Next action:
+                # (feed the observation to your agent here)
+                action = env.action_space.sample()
 
-            state = new_state
-            episode_rewards += reward
+                # Processing: terminated => done
+                new_state, reward, terminated, _, _ = env.step(action)
 
-        print(f"for episode={episode+1}with total reward={episode_rewards}")
-    
-            
-            
-        #env.close() -- for manually close
+                if is_training:
+                    memory.append((state, action,new_state, reward,terminated))
+
+                state = new_state
+                episode_rewards += reward
+
+            print(f"for episode={episode+1}with total reward={episode_rewards}")
+        
+                
+                
+            #env.close() -- for manually close
