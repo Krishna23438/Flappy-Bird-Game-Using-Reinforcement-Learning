@@ -25,7 +25,7 @@ class Agent:
     def __init__(self, param_set):
         self.param_set = param_set
 
-        with open("parameters.yaml", "r") as f:
+        with open("parameter.yaml", "r") as f:
             all_param_set = yaml.safe_load(f)
             params = all_param_set[param_set]
 
@@ -107,7 +107,7 @@ class Agent:
 
                 state = next_state
                 
-            print(f"episode={episode+1} with total reward={episode_reward} & epsilon={epsilon}")
+            print(f"Episode={episode+1}, Reward={episode_reward}")
 
             if is_training:
                 # epsilon decay
